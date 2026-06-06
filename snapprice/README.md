@@ -2,8 +2,6 @@
 
 AI-powered automated valuation model that tells sellers what their home is worth — and exactly why.
 
-Built for Snaphomz Hackathon 2.0.
-
 ---
 
 ## The Problem
@@ -55,10 +53,7 @@ Global feature importances tell you what matters on average. SHAP tells you why 
 If RealEstateAPI is unavailable, the system falls back to California Housing medians and labels the result clearly. A broken demo is not a demo.
 
 **What I left out and why:**
-- Photo-based condition scoring — requires a separate CV model (CLIP/ResNet); 2-week task not 1-hour task
-- Statistically valid confidence intervals — quantile regression is 3 extra lines; heuristic ±5% is honest and clearly labelled
-- Comp-level CMA display — architecturally trivial, time-constrained; next step would be a `/comps` endpoint using nearest-neighbour search on feature vectors
-
+- Photo-based condition scoring — requires a separate CV model (CLIP/ResNet)
 ---
 
 ## Revenue Connection
