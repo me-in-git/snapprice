@@ -1,65 +1,125 @@
-# SnapPrice — Automated Valuation Model (AVM)
+# SnapPrice
 
-> Real-time AI property valuation with SHAP explanations
+AI-powered automated valuation model that tells sellers what their home is worth — and exactly why.
 
-## What it does
-- Takes property features as input
-- Returns estimated price + confidence range
-- Explains every valuation factor in plain English
-- Powered by XGBoost + SHAP explainability
+Built for Snaphomz Hackathon 2.0.
 
-## Quick Start (Windows)
+---
+
+## The Problem
+
+Sellers distrust Zillow's Zestimate because it gives a number with no explanation. They overprice, sit on market for 90 days, then panic-cut. SnapPrice fixes this by showing not just the valuation, but the dollar-attributed reason behind every factor.
+
+---
+
+## What It Does
+
+- Takes a property address as input
+- Pulls live property data and neighbourhood demographics via RealEstateAPI
+- Runs an XGBoost regression model to produce a price estimate + confidence range
+- Uses SHAP to decompose the prediction into plain-English dollar contributions per feature
+- Shows a what-if simulator (model sensitivity to bedrooms, bathrooms, sqft)
+- Captures seller leads via a `/list-with-us` endpoint — the revenue connection
+
+---
+
+## Architecture
+
+```
+Address Input
+     ↓
+RealEstateAPI (PropertyDetail + PropertyComps + AVM)
+     ↓
+Feature Extraction → XGBoost Model → SHAP TreeExplainer
+     ↓
+FastAPI /predict → React Price Card UI
+```
+
+**Stack:**
+- Backend: Python, FastAPI, XGBoost, SHAP, scikit-learn, Pydantic
+- Frontend: React (Vite), vanilla CSS-in-JS
+- Data: RealEstateAPI.com (live) with California Housing dataset as fallback
+- Deployment: Railway (backend) + Vercel (frontend)
+
+---
+
+## Key Design Decisions
+
+**Why XGBoost?**
+Tree ensembles consistently outperform neural networks on tabular property data with mixed feature types. XGBoost also handles missing values natively — critical for real MLS data — and SHAP's TreeExplainer produces exact (not approximate) Shapley values for tree models.
+
+**Why SHAP?**
+Global feature importances tell you what matters on average. SHAP tells you why *this specific home* is valued the way it is, denominated in dollars. That is the difference between a data science report and a product a seller can act on.
+
+**Why a fallback architecture?**
+If RealEstateAPI is unavailable, the system falls back to California Housing medians and labels the result clearly. A broken demo is not a demo.
+
+**What I left out and why:**
+- Photo-based condition scoring — requires a separate CV model (CLIP/ResNet); 2-week task not 1-hour task
+- Statistically valid confidence intervals — quantile regression is 3 extra lines; heuristic ±5% is honest and clearly labelled
+- Comp-level CMA display — architecturally trivial, time-constrained; next step would be a `/comps` endpoint using nearest-neighbour search on feature vectors
+
+---
+
+## Revenue Connection
+
+- Sellers get an explained valuation → they trust it → they list on Snaphomz instead of Zillow
+- Replaces 4-hour manual agent CMA reports
+- Every Snaphomz transaction improves the model — compounding data moat
+- "What's my home worth?" is the highest-intent real estate query
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
 
 ### Backend
+
 ```bash
 cd backend
+python -m venv venv
+venv\Scripts\activate        # Windows
 pip install -r requirements.txt
+```
+
+Create a `.env` file in `backend/`:
+```
+REAPI_KEY=your_realestateapi_backend_key
+```
+
+```bash
 uvicorn main:app --reload
 ```
-Visit: http://localhost:8000/docs
+
+API docs available at `http://localhost:8000/docs`
 
 ### Frontend
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Visit: http://localhost:5173
 
-### Docker (optional)
-```bash
-cd backend
-docker build -t snapprice .
-docker run -p 8000:8000 snapprice
-```
+UI available at `http://localhost:5173`
 
-## Architecture
+---
 
-```
-User Input → FastAPI /predict → XGBoost AVM → SHAP Explainer → Price Card UI
-```
+## API Endpoints
 
-- **Model**: XGBoost regressor trained on California Housing (public MLS proxy)
-- **Explainability**: SHAP TreeExplainer — every factor has a dollar-value impact
-- **API**: FastAPI with Pydantic validation
-- **Frontend**: React price card with factor breakdown
-- **Fallback**: California Housing dataset if live API unavailable
+| Endpoint | Method | Description |
+|---|---|---|
+| `/predict` | POST | Address → price estimate + SHAP explanation |
+| `/sensitivity` | POST | Address → what-if impact per bedroom/bathroom/sqft |
+| `/list-with-us` | POST | Capture seller lead with agent match |
+| `/health` | GET | Model + API key status |
+| `/docs` | GET | Interactive Swagger UI |
 
-## Pitch Notes
+---
 
-**Why XGBoost over neural net?**
-Tabular data with mixed feature types — tree ensembles outperform NNs here consistently.
-Also: SHAP works natively with tree models, making explainability trivial.
+## Deployment
 
-**Why SHAP?**
-Sellers distrust black-box numbers. SHAP gives every prediction a dollar-attributed reason.
-"Your neighborhood income adds $24,000 to the valuation" is actionable. A Zestimate isn't.
-
-**What I left out and why:**
-- Live MLS API calls (RealEstateAPI.com) — California Housing is a valid public comp proxy. Production would swap the data layer, not the model.
-- Photo-based condition signals — would need a CV model; out of scope for 1hr
-- Comp-level CMA report — doable with the same stack, just more data wrangling
-
-**Revenue connection:**
-Sellers with a trusted, explainable valuation have a concrete reason to list on Snaphomz.
-Replaces 4hr agent CMA. As Snaphomz transaction data grows, model improves — data moat.
+Backend on Railway, frontend on Vercel. See deployment notes in `/docs`.
